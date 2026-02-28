@@ -95,8 +95,10 @@ wss.on('connection', (ws) => {
           currentTurn: 'black',
           moveCount: 0,
           gameOver: false,
+          matchOver: false,
           restartVotes: new Set(),
-          scores: [0, 0], // [player0 wins, player1 wins]
+          newMatchVotes: new Set(),
+          scores: [0, 0], // [player0 wins, player1 wins], first to 3 wins
         };
         rooms.set(code, room);
         ws.roomCode = code;
@@ -151,6 +153,12 @@ wss.on('connection', (ws) => {
           const overMsg = { type: 'game_over', winner: color, winCells, scores: room.scores };
           send(room.players[0], overMsg);
           send(room.players[1], overMsg);
+          if (room.scores[ws.originalIndex] >= 3) {
+            room.matchOver = true;
+            const matchMsg = { type: 'match_over', matchWinner: ws.originalIndex, scores: room.scores };
+            send(room.players[0], matchMsg);
+            send(room.players[1], matchMsg);
+          }
         } else if (room.moveCount >= 225) {
           room.gameOver = true;
           const overMsg = { type: 'game_over', winner: 'draw', winCells: [], scores: room.scores };
@@ -162,7 +170,7 @@ wss.on('connection', (ws) => {
 
       case 'restart': {
         const room = rooms.get(ws.roomCode);
-        if (!room || !room.gameOver) return;
+        if (!room || !room.gameOver || room.matchOver) return;
         room.restartVotes.add(ws.playerIndex);
 
         if (room.restartVotes.size < 2) {
@@ -180,6 +188,34 @@ wss.on('connection', (ws) => {
           room.restartVotes.clear();
           send(room.players[0], { type: 'restart_accepted', color: 'black', scores: room.scores, you: room.players[0].originalIndex });
           send(room.players[1], { type: 'restart_accepted', color: 'white', scores: room.scores, you: room.players[1].originalIndex });
+        }
+        break;
+      }
+      case 'new_match': {
+        const room = rooms.get(ws.roomCode);
+        if (!room || !room.matchOver) return;
+        room.newMatchVotes.add(ws.originalIndex);
+        if (room.newMatchVotes.size < 2) {
+          const opponentOrigIdx = 1 - ws.originalIndex;
+          const opponent = room.players.find(p => p && p.originalIndex === opponentOrigIdx);
+          if (opponent) send(opponent, { type: 'new_match_request' });
+        } else {
+          const p0 = room.players.find(p => p && p.originalIndex === 0);
+          const p1 = room.players.find(p => p && p.originalIndex === 1);
+          if (!p0 || !p1) return;
+          p0.playerIndex = 0;
+          p1.playerIndex = 1;
+          room.players = [p0, p1];
+          room.scores = [0, 0];
+          room.board = createEmptyBoard();
+          room.currentTurn = 'black';
+          room.moveCount = 0;
+          room.gameOver = false;
+          room.matchOver = false;
+          room.restartVotes = new Set();
+          room.newMatchVotes = new Set();
+          send(p0, { type: 'game_start', color: 'black', scores: room.scores, you: 0 });
+          send(p1, { type: 'game_start', color: 'white', scores: room.scores, you: 1 });
         }
         break;
       }

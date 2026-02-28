@@ -1,5 +1,8 @@
 const $ = (id) => document.getElementById(id);
 
+const PUNISHMENTS = ['按摩5分钟', '人肉坐垫', '遵命！', '变小狗', '挠痒痒15秒'];
+const WHEEL_COLORS = ['#e74c3c', '#e67e22', '#f39c12', '#27ae60', '#2980b9'];
+
 const screenMenu = $('screen-menu');
 const screenWaiting = $('screen-waiting');
 const screenGame = $('screen-game');
@@ -185,6 +188,7 @@ function handleMessage(msg) {
       $('btn-rematch').classList.add('hidden');
       confirmBtn.classList.add('hidden');
       $('status-bar').className = '';
+      removeWheelOverlay();
       updateScores(msg.scores);
       showScreen(screenGame);
       resizeCanvas();
@@ -243,10 +247,23 @@ function handleMessage(msg) {
       confirmBtn.classList.add('hidden');
       $('status-bar').className = '';
       removeTaunt();
+      removeWheelOverlay();
       updateScores(msg.scores);
       drawBoard();
       updateStatus();
       startTimer();
+      break;
+
+    case 'match_over':
+      $('btn-rematch').classList.add('hidden');
+      setTimeout(() => {
+        removeTaunt();
+        showWheelOverlay(msg.matchWinner !== state.myOriginalIndex);
+      }, 2000);
+      break;
+
+    case 'new_match_request':
+      showToast('对手请求再来一场');
       break;
 
     case 'error':
@@ -518,6 +535,148 @@ $('btn-leave').addEventListener('click', () => {
   showScreen(screenMenu);
   reconnect();
 });
+
+// --- Punishment Wheel ---
+
+function removeWheelOverlay() {
+  const el = $('wheel-overlay');
+  if (el) el.remove();
+}
+
+function showWheelOverlay(loserIsMe) {
+  removeWheelOverlay();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'wheel-overlay';
+  overlay.className = 'wheel-overlay';
+
+  const title = document.createElement('div');
+  title.className = 'wheel-title';
+  title.textContent = loserIsMe ? '你输了！转动惩罚转盘！' : '对手接受惩罚！';
+
+  const container = document.createElement('div');
+  container.className = 'wheel-container';
+
+  const pointer = document.createElement('div');
+  pointer.className = 'wheel-pointer';
+  pointer.textContent = '▼';
+
+  const wCanvas = document.createElement('canvas');
+  wCanvas.id = 'wheel-canvas';
+  const wSize = Math.min(window.innerWidth * 0.75, 280);
+  wCanvas.width = wSize;
+  wCanvas.height = wSize;
+
+  container.appendChild(pointer);
+  container.appendChild(wCanvas);
+
+  const btnNew = document.createElement('button');
+  btnNew.id = 'btn-new-match';
+  btnNew.className = 'hidden';
+  btnNew.textContent = '再来一场';
+  btnNew.addEventListener('click', () => {
+    sendMsg({ type: 'new_match' });
+    btnNew.disabled = true;
+    showToast('已发送再来一场请求');
+  });
+
+  overlay.appendChild(title);
+  overlay.appendChild(container);
+  overlay.appendChild(btnNew);
+  document.body.appendChild(overlay);
+
+  drawWheel(0);
+  setTimeout(spinWheel, 800);
+}
+
+function drawWheel(angle) {
+  const wCanvas = document.getElementById('wheel-canvas');
+  if (!wCanvas) return;
+  const wCtx = wCanvas.getContext('2d');
+  const N = PUNISHMENTS.length;
+  const segAngle = (Math.PI * 2) / N;
+  const cx = wCanvas.width / 2;
+  const cy = wCanvas.height / 2;
+  const r = Math.min(cx, cy) - 6;
+
+  wCtx.clearRect(0, 0, wCanvas.width, wCanvas.height);
+
+  for (let i = 0; i < N; i++) {
+    const startAngle = angle + i * segAngle;
+    const endAngle = startAngle + segAngle;
+
+    wCtx.beginPath();
+    wCtx.moveTo(cx, cy);
+    wCtx.arc(cx, cy, r, startAngle, endAngle);
+    wCtx.closePath();
+    wCtx.fillStyle = WHEEL_COLORS[i];
+    wCtx.fill();
+    wCtx.strokeStyle = '#fff';
+    wCtx.lineWidth = 2;
+    wCtx.stroke();
+
+    wCtx.save();
+    wCtx.translate(cx, cy);
+    wCtx.rotate(startAngle + segAngle / 2);
+    wCtx.textAlign = 'right';
+    wCtx.fillStyle = '#fff';
+    wCtx.font = `bold ${Math.max(11, r * 0.13)}px sans-serif`;
+    wCtx.shadowColor = 'rgba(0,0,0,0.5)';
+    wCtx.shadowBlur = 3;
+    wCtx.fillText(PUNISHMENTS[i], r - 10, 5);
+    wCtx.restore();
+  }
+
+  // Center circle
+  wCtx.beginPath();
+  wCtx.arc(cx, cy, 16, 0, Math.PI * 2);
+  wCtx.fillStyle = '#fff';
+  wCtx.fill();
+  wCtx.strokeStyle = '#ccc';
+  wCtx.lineWidth = 2;
+  wCtx.stroke();
+}
+
+function spinWheel() {
+  const N = PUNISHMENTS.length;
+  const segAngle = (Math.PI * 2) / N;
+  const target = Math.floor(Math.random() * N);
+
+  // Pointer is at top (3π/2). Center of segment i at angle: angle + i*segAngle + segAngle/2
+  // We want: finalAngle + target*segAngle + segAngle/2 = 3π/2
+  const baseAngle = 3 * Math.PI / 2 - (target + 0.5) * segAngle;
+  const normalized = ((baseAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const totalSpin = normalized + Math.PI * 2 * (6 + Math.random() * 3);
+
+  const duration = 5000;
+  const startTime = performance.now();
+
+  function animate(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 4);
+    drawWheel(eased * totalSpin);
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      setTimeout(() => showWheelResult(target), 400);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function showWheelResult(target) {
+  const overlay = $('wheel-overlay');
+  if (!overlay) return;
+
+  const result = document.createElement('div');
+  result.className = 'wheel-result';
+  result.innerHTML = `<span>惩罚结果</span>${PUNISHMENTS[target]}`;
+
+  const btnNew = $('btn-new-match');
+  overlay.insertBefore(result, btnNew);
+  if (btnNew) btnNew.classList.remove('hidden');
+}
 
 // --- Init ---
 connect();
