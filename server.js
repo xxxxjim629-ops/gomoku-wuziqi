@@ -155,7 +155,8 @@ wss.on('connection', (ws) => {
           send(room.players[1], overMsg);
           if (room.scores[ws.originalIndex] >= 3) {
             room.matchOver = true;
-            const matchMsg = { type: 'match_over', matchWinner: ws.originalIndex, scores: room.scores };
+            const punishmentIndex = Math.floor(Math.random() * 5);
+            const matchMsg = { type: 'match_over', matchWinner: ws.originalIndex, scores: room.scores, punishmentIndex };
             send(room.players[0], matchMsg);
             send(room.players[1], matchMsg);
           }

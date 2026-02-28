@@ -258,7 +258,7 @@ function handleMessage(msg) {
       $('btn-rematch').classList.add('hidden');
       setTimeout(() => {
         removeTaunt();
-        showWheelOverlay(msg.matchWinner !== state.myOriginalIndex);
+        showWheelOverlay(msg.matchWinner !== state.myOriginalIndex, msg.punishmentIndex);
       }, 2000);
       break;
 
@@ -543,7 +543,7 @@ function removeWheelOverlay() {
   if (el) el.remove();
 }
 
-function showWheelOverlay(loserIsMe) {
+function showWheelOverlay(loserIsMe, punishmentIndex) {
   removeWheelOverlay();
 
   const overlay = document.createElement('div');
@@ -586,7 +586,7 @@ function showWheelOverlay(loserIsMe) {
   document.body.appendChild(overlay);
 
   drawWheel(0);
-  setTimeout(spinWheel, 800);
+  setTimeout(() => spinWheel(punishmentIndex), 800);
 }
 
 function drawWheel(angle) {
@@ -637,16 +637,18 @@ function drawWheel(angle) {
   wCtx.stroke();
 }
 
-function spinWheel() {
+function spinWheel(target) {
   const N = PUNISHMENTS.length;
   const segAngle = (Math.PI * 2) / N;
-  const target = Math.floor(Math.random() * N);
 
-  // Pointer is at top (3π/2). Center of segment i at angle: angle + i*segAngle + segAngle/2
-  // We want: finalAngle + target*segAngle + segAngle/2 = 3π/2
+  // Pointer is at top (3π/2). We want center of segment `target` to be at 3π/2.
+  // Center of segment i = finalAngle + i*segAngle + segAngle/2
+  // So: finalAngle = 3π/2 - (target + 0.5)*segAngle  (mod 2π)
   const baseAngle = 3 * Math.PI / 2 - (target + 0.5) * segAngle;
   const normalized = ((baseAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  const totalSpin = normalized + Math.PI * 2 * (6 + Math.random() * 3);
+  // Extra rotations MUST be a whole integer to not disturb the final angle
+  const extraSpins = 6 + Math.floor(Math.random() * 4);
+  const totalSpin = normalized + Math.PI * 2 * extraSpins;
 
   const duration = 5000;
   const startTime = performance.now();
