@@ -1,0 +1,346 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* Screens */
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  width: 100%;
+  max-width: 450px;
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* Menu */
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 0.95rem;
+  margin-top: -10px;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.join-row {
+  display: flex;
+  gap: 10px;
+}
+
+input {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 1.1rem;
+  border: 2px solid #333;
+  border-radius: 10px;
+  background: #16213e;
+  color: #eee;
+  text-align: center;
+  letter-spacing: 0.2em;
+  font-family: monospace;
+  outline: none;
+}
+
+input:focus {
+  border-color: #4a6fa5;
+}
+
+input::placeholder {
+  color: #555;
+  letter-spacing: 0.05em;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Buttons */
+button {
+  padding: 14px 32px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #4a6fa5;
+  color: #fff;
+  min-height: 48px;
+  transition: background 0.15s;
+}
+
+button:active {
+  background: #3a5a8a;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #888;
+  border: 1px solid #333;
+}
+
+.btn-secondary:active {
+  background: #222;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Waiting Screen */
+.code-box {
+  background: #16213e;
+  border: 2px dashed #4a6fa5;
+  border-radius: 12px;
+  padding: 20px 40px;
+}
+
+#room-code {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: 0.3em;
+  color: #4a6fa5;
+}
+
+/* Game Screen */
+#screen-game {
+  gap: 10px;
+  padding: 10px;
+}
+
+#scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.score-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.score-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #aaa;
+  letter-spacing: 0.05em;
+}
+
+.score-num {
+  font-size: 1.8rem;
+  font-weight: 800;
+  font-family: monospace;
+  color: #555;
+}
+
+.score-card.score-me .score-name {
+  color: #52b788;
+}
+
+.score-card.score-me .score-num {
+  color: #52b788;
+}
+
+.score-card.score-other .score-name {
+  color: #e74c3c;
+}
+
+.score-card.score-other .score-num {
+  color: #e74c3c;
+}
+
+.score-sep {
+  color: #333;
+  font-size: 1.2rem;
+  margin-top: 14px;
+}
+
+#status-bar {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #16213e;
+  text-align: center;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+#timer {
+  font-family: monospace;
+  font-size: 1.2rem;
+  color: #4a6fa5;
+  min-width: 32px;
+}
+
+#timer.urgent {
+  color: #e74c3c;
+  animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0.4; }
+}
+
+#status-bar.win {
+  background: #1b4332;
+  color: #52b788;
+}
+
+#status-bar.lose {
+  background: #3d0000;
+  color: #e74c3c;
+}
+
+#status-bar.draw {
+  background: #333;
+  color: #aaa;
+}
+
+#board-canvas {
+  border-radius: 6px;
+  touch-action: none;
+}
+
+#game-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+#game-actions button {
+  flex: 1;
+}
+
+#btn-rematch {
+  background: #52b788;
+}
+
+#btn-rematch:active {
+  background: #3a9d6e;
+}
+
+/* Floating confirm button */
+#btn-confirm-float {
+  position: fixed;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(30, 30, 50, 0.85);
+  font-size: 1.5rem;
+  line-height: 44px;
+  text-align: center;
+  border: 2px solid #52b788;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  cursor: pointer;
+  animation: popIn 0.15s ease-out;
+}
+
+#btn-confirm-float:active {
+  transform: scale(0.9);
+}
+
+@keyframes popIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+/* Taunt overlay */
+.taunt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: tauntIn 0.3s ease-out;
+}
+
+.taunt-text {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #e74c3c;
+  text-align: center;
+  text-shadow: 0 0 30px rgba(231, 76, 60, 0.6);
+  animation: tauntPulse 0.6s ease-in-out infinite alternate;
+}
+
+.taunt-text.taunt-win {
+  color: #52b788;
+  text-shadow: 0 0 30px rgba(82, 183, 136, 0.6);
+}
+
+@keyframes tauntIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes tauntPulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #eee;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  z-index: 100;
+  animation: fadeInOut 2s forwards;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}

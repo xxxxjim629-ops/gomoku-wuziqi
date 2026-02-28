@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>五子棋</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Menu Screen -->
+  <div id="screen-menu" class="screen active">
+    <h1>五子棋</h1>
+    <p class="subtitle">双人在线对战</p>
+    <div class="menu-actions">
+      <button id="btn-create">创建房间</button>
+      <div class="join-row">
+        <input id="input-code" type="tel" maxlength="4" placeholder="输入房间码" inputmode="numeric" autocomplete="off">
+        <button id="btn-join">加入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Waiting Screen -->
+  <div id="screen-waiting" class="screen">
+    <h2>等待对手加入...</h2>
+    <div class="code-box">
+      <span id="room-code"></span>
+    </div>
+    <button id="btn-copy">复制房间码</button>
+    <button id="btn-back" class="btn-secondary">返回</button>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="screen-game" class="screen">
+    <div id="scoreboard">
+      <div class="score-card" id="score-card-p1">
+        <div class="score-name">噜噜</div>
+        <div class="score-num" id="score-p1">0</div>
+      </div>
+      <div class="score-sep">—</div>
+      <div class="score-card" id="score-card-p2">
+        <div class="score-name">奶龙</div>
+        <div class="score-num" id="score-p2">0</div>
+      </div>
+    </div>
+    <div id="status-bar">
+      <span id="status-text"></span>
+      <span id="timer"></span>
+    </div>
+    <canvas id="board-canvas"></canvas>
+    <div id="game-actions">
+      <button id="btn-rematch" class="hidden">再来一局</button>
+      <button id="btn-leave" class="btn-secondary">离开</button>
+    </div>
+  </div>
+
+  <button id="btn-confirm-float" class="hidden">✅</button>
+  <script src="script.js"></script>
+</body>
+</html>
