@@ -15,7 +15,12 @@
     <div class="menu-actions">
       <button id="btn-create">创建房间</button>
       <div class="join-row">
-        <input id="input-code" type="tel" maxlength="4" placeholder="输入房间码" inputmode="numeric" autocomplete="off">
+        <div class="code-inputs">
+          <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" autocomplete="off" data-index="0">
+          <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" autocomplete="off" data-index="1">
+          <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" autocomplete="off" data-index="2">
+          <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" autocomplete="off" data-index="3">
+        </div>
         <button id="btn-join">加入</button>
       </div>
     </div>

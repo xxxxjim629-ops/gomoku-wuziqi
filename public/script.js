@@ -1,8 +1,5 @@
 const $ = (id) => document.getElementById(id);
 
-const PUNISHMENTS = ['按摩5分钟', '人肉坐垫', '遵命！', '变小狗', '挠痒痒15秒'];
-const WHEEL_COLORS = ['#e74c3c', '#e67e22', '#f39c12', '#27ae60', '#2980b9'];
-
 const screenMenu = $('screen-menu');
 const screenWaiting = $('screen-waiting');
 const screenGame = $('screen-game');
@@ -188,7 +185,7 @@ function handleMessage(msg) {
       $('btn-rematch').classList.add('hidden');
       confirmBtn.classList.add('hidden');
       $('status-bar').className = '';
-      removeWheelOverlay();
+      removeMatchOverlay();
       updateScores(msg.scores);
       showScreen(screenGame);
       resizeCanvas();
@@ -247,7 +244,7 @@ function handleMessage(msg) {
       confirmBtn.classList.add('hidden');
       $('status-bar').className = '';
       removeTaunt();
-      removeWheelOverlay();
+      removeMatchOverlay();
       updateScores(msg.scores);
       drawBoard();
       updateStatus();
@@ -258,7 +255,7 @@ function handleMessage(msg) {
       $('btn-rematch').classList.add('hidden');
       setTimeout(() => {
         removeTaunt();
-        showWheelOverlay(msg.matchWinner !== state.myOriginalIndex, msg.punishmentIndex);
+        showMatchOverOverlay(msg.matchWinner === state.myOriginalIndex);
       }, 2000);
       break;
 
@@ -336,7 +333,17 @@ function removeTaunt() {
 // --- Canvas Rendering ---
 
 function resizeCanvas() {
-  logicalSize = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.6, 450);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Use a stable size: 90% of the smaller viewport dimension, capped at 450
+  logicalSize = Math.min(vw * 0.9, vh * 0.9, 450);
+  // Subtract space for scoreboard, status bar, buttons (~200px)
+  const available = vh - 200;
+  if (available > 0 && available < logicalSize) {
+    logicalSize = available;
+  }
+  // Ensure minimum size
+  logicalSize = Math.max(logicalSize, 280);
   canvas.style.width = logicalSize + 'px';
   canvas.style.height = logicalSize + 'px';
   const dpr = window.devicePixelRatio || 1;
@@ -357,17 +364,6 @@ function drawBoard() {
   // Background
   ctx.fillStyle = '#DEB887';
   ctx.fillRect(0, 0, size, size);
-
-  // Watermark text
-  ctx.save();
-  ctx.font = `bold ${size * 0.07}px sans-serif`;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.translate(size / 2, size / 2);
-  ctx.rotate(-Math.PI / 12);
-  ctx.fillText('王咿人别急眼', 0, 0);
-  ctx.restore();
 
   // Grid lines — bold
   ctx.strokeStyle = '#222';
@@ -494,17 +490,62 @@ $('btn-create').addEventListener('click', () => {
   sendMsg({ type: 'create_room' });
 });
 
+const codeDigits = document.querySelectorAll('.code-digit');
+
+function getCodeValue() {
+  return Array.from(codeDigits).map(d => d.value).join('');
+}
+
+codeDigits.forEach((input, idx) => {
+  input.addEventListener('input', (e) => {
+    const val = input.value.replace(/\D/g, '');
+    input.value = val.slice(-1);
+    if (input.value && idx < 3) {
+      codeDigits[idx + 1].focus();
+    }
+    if (idx === 3 && input.value) {
+      const code = getCodeValue();
+      if (code.length === 4) {
+        input.blur();
+        sendMsg({ type: 'join_room', code });
+      }
+    }
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !input.value && idx > 0) {
+      codeDigits[idx - 1].focus();
+    }
+    if (e.key === 'Enter') {
+      const code = getCodeValue();
+      if (code.length === 4) {
+        sendMsg({ type: 'join_room', code });
+      } else {
+        showToast('请输入4位房间码');
+      }
+    }
+  });
+  input.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 4);
+    for (let i = 0; i < 4; i++) {
+      codeDigits[i].value = text[i] || '';
+    }
+    if (text.length === 4) {
+      codeDigits[3].focus();
+      sendMsg({ type: 'join_room', code: text });
+    } else if (text.length > 0) {
+      codeDigits[Math.min(text.length, 3)].focus();
+    }
+  });
+});
+
 $('btn-join').addEventListener('click', () => {
-  const code = $('input-code').value.trim();
+  const code = getCodeValue();
   if (code.length !== 4) {
     showToast('请输入4位房间码');
     return;
   }
   sendMsg({ type: 'join_room', code });
-});
-
-$('input-code').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') $('btn-join').click();
 });
 
 $('btn-copy').addEventListener('click', () => {
@@ -536,43 +577,26 @@ $('btn-leave').addEventListener('click', () => {
   reconnect();
 });
 
-// --- Punishment Wheel ---
+// --- Match Over Overlay ---
 
-function removeWheelOverlay() {
-  const el = $('wheel-overlay');
+function removeMatchOverlay() {
+  const el = $('match-over-overlay');
   if (el) el.remove();
 }
 
-function showWheelOverlay(loserIsMe, punishmentIndex) {
-  removeWheelOverlay();
+function showMatchOverOverlay(iWon) {
+  removeMatchOverlay();
 
   const overlay = document.createElement('div');
-  overlay.id = 'wheel-overlay';
-  overlay.className = 'wheel-overlay';
+  overlay.id = 'match-over-overlay';
+  overlay.className = 'match-over-overlay';
 
   const title = document.createElement('div');
-  title.className = 'wheel-title';
-  title.textContent = loserIsMe ? '你输了！转动惩罚转盘！' : '对手接受惩罚！';
-
-  const container = document.createElement('div');
-  container.className = 'wheel-container';
-
-  const pointer = document.createElement('div');
-  pointer.className = 'wheel-pointer';
-  pointer.textContent = '▼';
-
-  const wCanvas = document.createElement('canvas');
-  wCanvas.id = 'wheel-canvas';
-  const wSize = Math.min(window.innerWidth * 0.75, 280);
-  wCanvas.width = wSize;
-  wCanvas.height = wSize;
-
-  container.appendChild(pointer);
-  container.appendChild(wCanvas);
+  title.className = 'match-over-title' + (iWon ? ' match-win' : '');
+  title.textContent = iWon ? '你赢得了比赛！' : '你输了比赛...';
 
   const btnNew = document.createElement('button');
   btnNew.id = 'btn-new-match';
-  btnNew.className = 'hidden';
   btnNew.textContent = '再来一场';
   btnNew.addEventListener('click', () => {
     sendMsg({ type: 'new_match' });
@@ -581,103 +605,8 @@ function showWheelOverlay(loserIsMe, punishmentIndex) {
   });
 
   overlay.appendChild(title);
-  overlay.appendChild(container);
   overlay.appendChild(btnNew);
   document.body.appendChild(overlay);
-
-  drawWheel(0);
-  setTimeout(() => spinWheel(punishmentIndex), 800);
-}
-
-function drawWheel(angle) {
-  const wCanvas = document.getElementById('wheel-canvas');
-  if (!wCanvas) return;
-  const wCtx = wCanvas.getContext('2d');
-  const N = PUNISHMENTS.length;
-  const segAngle = (Math.PI * 2) / N;
-  const cx = wCanvas.width / 2;
-  const cy = wCanvas.height / 2;
-  const r = Math.min(cx, cy) - 6;
-
-  wCtx.clearRect(0, 0, wCanvas.width, wCanvas.height);
-
-  for (let i = 0; i < N; i++) {
-    const startAngle = angle + i * segAngle;
-    const endAngle = startAngle + segAngle;
-
-    wCtx.beginPath();
-    wCtx.moveTo(cx, cy);
-    wCtx.arc(cx, cy, r, startAngle, endAngle);
-    wCtx.closePath();
-    wCtx.fillStyle = WHEEL_COLORS[i];
-    wCtx.fill();
-    wCtx.strokeStyle = '#fff';
-    wCtx.lineWidth = 2;
-    wCtx.stroke();
-
-    wCtx.save();
-    wCtx.translate(cx, cy);
-    wCtx.rotate(startAngle + segAngle / 2);
-    wCtx.textAlign = 'right';
-    wCtx.fillStyle = '#fff';
-    wCtx.font = `bold ${Math.max(11, r * 0.13)}px sans-serif`;
-    wCtx.shadowColor = 'rgba(0,0,0,0.5)';
-    wCtx.shadowBlur = 3;
-    wCtx.fillText(PUNISHMENTS[i], r - 10, 5);
-    wCtx.restore();
-  }
-
-  // Center circle
-  wCtx.beginPath();
-  wCtx.arc(cx, cy, 16, 0, Math.PI * 2);
-  wCtx.fillStyle = '#fff';
-  wCtx.fill();
-  wCtx.strokeStyle = '#ccc';
-  wCtx.lineWidth = 2;
-  wCtx.stroke();
-}
-
-function spinWheel(target) {
-  const N = PUNISHMENTS.length;
-  const segAngle = (Math.PI * 2) / N;
-
-  // Pointer is at top (3π/2). We want center of segment `target` to be at 3π/2.
-  // Center of segment i = finalAngle + i*segAngle + segAngle/2
-  // So: finalAngle = 3π/2 - (target + 0.5)*segAngle  (mod 2π)
-  const baseAngle = 3 * Math.PI / 2 - (target + 0.5) * segAngle;
-  const normalized = ((baseAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  // Extra rotations MUST be a whole integer to not disturb the final angle
-  const extraSpins = 6 + Math.floor(Math.random() * 4);
-  const totalSpin = normalized + Math.PI * 2 * extraSpins;
-
-  const duration = 5000;
-  const startTime = performance.now();
-
-  function animate(now) {
-    const progress = Math.min((now - startTime) / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 4);
-    drawWheel(eased * totalSpin);
-    if (progress < 1) {
-      requestAnimationFrame(animate);
-    } else {
-      setTimeout(() => showWheelResult(target), 400);
-    }
-  }
-
-  requestAnimationFrame(animate);
-}
-
-function showWheelResult(target) {
-  const overlay = $('wheel-overlay');
-  if (!overlay) return;
-
-  const result = document.createElement('div');
-  result.className = 'wheel-result';
-  result.innerHTML = `<span>惩罚结果</span>${PUNISHMENTS[target]}`;
-
-  const btnNew = $('btn-new-match');
-  overlay.insertBefore(result, btnNew);
-  if (btnNew) btnNew.classList.remove('hidden');
 }
 
 // --- Init ---
