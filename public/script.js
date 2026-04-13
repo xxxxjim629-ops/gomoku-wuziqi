@@ -210,7 +210,13 @@ function handleMessage(msg) {
     case 'game_start':
       resetGameState(msg);
       showScreen(screenGame);
-      resizeCanvas();
+      // Delay resize to ensure browser layout is complete (mobile address bar, etc.)
+      requestAnimationFrame(() => {
+        resizeCanvas();
+        // Re-check after mobile browsers finish adjusting viewport
+        setTimeout(resizeCanvas, 150);
+        setTimeout(resizeCanvas, 500);
+      });
       break;
 
     case 'move_made':
@@ -343,17 +349,30 @@ function removeTaunt() {
 // --- Canvas Rendering ---
 
 function resizeCanvas() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  // Use a stable size: 90% of the smaller viewport dimension, capped at 450
-  logicalSize = Math.min(vw * 0.9, vh * 0.9, 450);
-  // Subtract space for scoreboard, status bar, buttons (~200px)
-  const available = vh - 200;
-  if (available > 0 && available < logicalSize) {
-    logicalSize = available;
-  }
-  // Ensure minimum size
-  logicalSize = Math.max(logicalSize, 280);
+  // Temporarily hide canvas so it doesn't influence the container's size
+  canvas.style.width = '0px';
+  canvas.style.height = '0px';
+
+  // Measure actual available space inside the game screen
+  const gameScreen = $('screen-game');
+  const scoreboard = $('scoreboard');
+  const statusBar = $('status-bar');
+  const gameActions = $('game-actions');
+
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+
+  // Calculate space used by other elements
+  const usedHeight = scoreboard.offsetHeight + statusBar.offsetHeight + gameActions.offsetHeight;
+  // Account for gaps (game screen has gap:10px, 3 gaps between 4 elements = 30px + padding 20px)
+  const padding = 60;
+  const available = vh - usedHeight - padding;
+
+  // Square canvas: fit in available height and 90% of width, capped at 450
+  logicalSize = Math.min(available, vw * 0.92, 450);
+  logicalSize = Math.max(logicalSize, 250);
+  logicalSize = Math.floor(logicalSize);
+
   canvas.style.width = logicalSize + 'px';
   canvas.style.height = logicalSize + 'px';
   const dpr = window.devicePixelRatio || 1;
@@ -488,11 +507,16 @@ canvas.addEventListener('click', (e) => {
   setPendingMove(row, col);
 });
 
-window.addEventListener('resize', () => {
+function onViewportResize() {
   if (screenGame.classList.contains('active')) {
     resizeCanvas();
   }
-});
+}
+window.addEventListener('resize', onViewportResize);
+// Mobile: visualViewport fires when address bar hides/shows
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onViewportResize);
+}
 
 // --- UI Event Wiring ---
 
