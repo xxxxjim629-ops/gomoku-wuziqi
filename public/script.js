@@ -24,6 +24,8 @@ let timerInterval = null;
 let timeLeft = 60;
 let wsReady = false;
 let pendingMessages = [];
+let reconnectAttempts = 0;
+let reconnectTimer = null;
 
 // --- Screen Navigation ---
 
@@ -146,6 +148,7 @@ function connect() {
   state.ws = new WebSocket(`${protocol}//${location.host}`);
   state.ws.onopen = () => {
     wsReady = true;
+    reconnectAttempts = 0;
     for (const msg of pendingMessages) {
       state.ws.send(JSON.stringify(msg));
     }
@@ -155,6 +158,18 @@ function connect() {
   state.ws.onclose = () => {
     state.ws = null;
     wsReady = false;
+    // Auto-reconnect with exponential backoff if in game or waiting screen
+    const inGame = screenGame.classList.contains('active');
+    const inWaiting = screenWaiting.classList.contains('active');
+    if (inGame || inWaiting) {
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+      reconnectAttempts++;
+      showToast('连接断开，正在重连...');
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, delay);
+    }
   };
 }
 
@@ -166,6 +181,25 @@ function sendMsg(msg) {
   }
 }
 
+function resetGameState(msg) {
+  state.myColor = msg.color;
+  state.myOriginalIndex = msg.you;
+  state.board = Array.from({ length: 15 }, () => Array(15).fill(null));
+  state.currentTurn = 'black';
+  state.gameOver = false;
+  state.lastMove = null;
+  state.pendingMove = null;
+  state.winCells.clear();
+  $('btn-rematch').classList.add('hidden');
+  confirmBtn.classList.add('hidden');
+  $('status-bar').className = '';
+  removeTaunt();
+  removeMatchOverlay();
+  updateScores(msg.scores);
+  updateStatus();
+  startTimer();
+}
+
 function handleMessage(msg) {
   switch (msg.type) {
     case 'room_created':
@@ -174,23 +208,9 @@ function handleMessage(msg) {
       break;
 
     case 'game_start':
-      state.myColor = msg.color;
-      state.myOriginalIndex = msg.you;
-      state.board = Array.from({ length: 15 }, () => Array(15).fill(null));
-      state.currentTurn = 'black';
-      state.gameOver = false;
-      state.lastMove = null;
-      state.pendingMove = null;
-      state.winCells.clear();
-      $('btn-rematch').classList.add('hidden');
-      confirmBtn.classList.add('hidden');
-      $('status-bar').className = '';
-      removeMatchOverlay();
-      updateScores(msg.scores);
+      resetGameState(msg);
       showScreen(screenGame);
       resizeCanvas();
-      updateStatus();
-      startTimer();
       break;
 
     case 'move_made':
@@ -232,23 +252,8 @@ function handleMessage(msg) {
       break;
 
     case 'restart_accepted':
-      state.myColor = msg.color;
-      state.myOriginalIndex = msg.you;
-      state.board = Array.from({ length: 15 }, () => Array(15).fill(null));
-      state.currentTurn = 'black';
-      state.gameOver = false;
-      state.lastMove = null;
-      state.pendingMove = null;
-      state.winCells.clear();
-      $('btn-rematch').classList.add('hidden');
-      confirmBtn.classList.add('hidden');
-      $('status-bar').className = '';
-      removeTaunt();
-      removeMatchOverlay();
-      updateScores(msg.scores);
+      resetGameState(msg);
       drawBoard();
-      updateStatus();
-      startTimer();
       break;
 
     case 'match_over':
@@ -272,6 +277,11 @@ function handleMessage(msg) {
 function reconnect() {
   stopTimer();
   removeTaunt();
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectAttempts = 0;
   if (state.ws) {
     state.ws.onclose = null;
     state.ws.close();

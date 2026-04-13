@@ -33,6 +33,22 @@ const server = http.createServer((req, res) => {
 // Room storage
 const rooms = new Map();
 
+// Clean up stale rooms every 60 seconds
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of rooms) {
+    const age = now - room.createdAt;
+    // Remove if: waiting for opponent > 10min, or game over > 5min, or idle > 30min
+    if (!room.players[1] && age > 10 * 60 * 1000) {
+      rooms.delete(code);
+    } else if (room.matchOver && age > 5 * 60 * 1000) {
+      rooms.delete(code);
+    } else if (age > 30 * 60 * 1000) {
+      rooms.delete(code);
+    }
+  }
+}, 60 * 1000);
+
 function generateCode() {
   let code;
   do {
@@ -98,6 +114,7 @@ wss.on('connection', (ws) => {
           matchOver: false,
           restartVotes: new Set(),
           scores: [0, 0], // [player0 wins, player1 wins], first to 3 wins
+          createdAt: Date.now(),
         };
         rooms.set(code, room);
         ws.roomCode = code;
